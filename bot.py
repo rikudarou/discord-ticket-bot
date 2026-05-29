@@ -4,7 +4,7 @@ from discord.ui import Select, View
 import asyncio
 import os
 from datetime import datetime
-import io  # ← これを追加
+import io
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -18,18 +18,18 @@ cooldown = {}
 class TicketSelect(Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label="HWID Reset", description="HWIDリセット申請", emoji="🔑"),
-            discord.SelectOption(label="Products", description="商品に関する質問", emoji="🛒"),
-            discord.SelectOption(label="Support", description="その他のサポート", emoji="❓"),
+            discord.SelectOption(label="HWID Reset", description="HWIDリセット申請 / HWID Reset Request", emoji="🔑"),
+            discord.SelectOption(label="Products", description="商品に関する問い合わせ / Product Inquiry", emoji="🛒"),
+            discord.SelectOption(label="Support", description="その他のサポート / Other Support", emoji="❓"),
         ]
-        super().__init__(placeholder="チケットの種類を選択してください...", options=options)
+        super().__init__(placeholder="チケットの種類を選択 / Select ticket type...", options=options)
 
     async def callback(self, interaction: discord.Interaction):
         user_id = interaction.user.id
         now = datetime.now().timestamp()
         if user_id in cooldown and now - cooldown[user_id] < 30:
             remain = int(30 - (now - cooldown[user_id]))
-            return await interaction.response.send_message(f"⏳ あと{remain}秒お待ちください...", ephemeral=True)
+            return await interaction.response.send_message(f"⏳ あと{remain}秒待ってください / Please wait {remain} seconds.", ephemeral=True)
         
         cooldown[user_id] = now
 
@@ -48,12 +48,33 @@ class TicketSelect(Select):
             overwrites=overwrites
         )
 
+        # 共通の挨拶
         embed = discord.Embed(
             title=f"📩 新しいチケット - {ticket_type}",
-            description=f"{interaction.user.mention} さんがチケットを作成しました。",
+            description=f"{interaction.user.mention} さんがチケットを作成しました。\n\n**Please provide the following information:**",
             color=0x5865F2
         )
-        embed.add_field(name="閉じる方法", value="`!close` または `/close` と入力", inline=False)
+
+        if ticket_type == "HWID Reset":
+            embed.add_field(
+                name="必要な情報 / Required Information",
+                value="• ライセンスキー / License Key\n• HWID Resetをしたい理由 / Reason for HWID Reset",
+                inline=False
+            )
+        elif ticket_type == "Products":
+            embed.add_field(
+                name="必要な情報 / Required Information",
+                value="• どの商品についての問い合わせですか？ / Which product is this inquiry about?",
+                inline=False
+            )
+        elif ticket_type == "Support":
+            embed.add_field(
+                name="必要な情報 / Required Information",
+                value="• サポートが必要な理由を詳しく書いてください / Please describe your issue in detail",
+                inline=False
+            )
+
+        embed.add_field(name="閉じる方法 / How to close", value="`!close` または `/close` と入力", inline=False)
 
         await channel.send(embed=embed, content=interaction.user.mention)
         await interaction.response.send_message(f"✅ チケットを作成しました → {channel.mention}", ephemeral=True)
@@ -65,21 +86,24 @@ class TicketView(View):
         self.add_item(TicketSelect())
 
 
-@tree.command(name="ticketpanel", description="チケットパネルを表示")
+@tree.command(name="ticketpanel", description="チケットパネルを表示 / Show ticket panel")
 @app_commands.default_permissions(administrator=True)
 async def ticketpanel(interaction: discord.Interaction):
-    embed = discord.Embed(title="🛠️ サポートチケット", description="下のメニューから選択してください", color=0x5865F2)
+    embed = discord.Embed(
+        title="🛠️ サポートチケット / Support Ticket",
+        description="下のメニューから用件を選択してください / Please select your request below.",
+        color=0x5865F2
+    )
     await interaction.response.send_message(embed=embed, view=TicketView())
 
 
 async def close_ticket(ctx):
     channel = ctx.channel
     if "ticket" not in channel.name.lower():
-        return await channel.send("このチャンネルはチケットではありません。")
+        return await channel.send("このチャンネルはチケットではありません / This is not a ticket channel.")
 
-    await channel.send("✅ 30秒後にチケットを閉じ、ログを保存します...")
+    await channel.send("✅ 30秒後にチケットを閉じ、ログを保存します... / Closing ticket and saving log in 30 seconds...")
 
-    # ログ保存
     messages = [msg async for msg in channel.history(limit=None)]
     log_content = f"Ticket Log: {channel.name}\nClosed at: {datetime.now()}\n\n"
     for msg in reversed(messages):
@@ -91,17 +115,14 @@ async def close_ticket(ctx):
 
     await log_channel.send(
         f"**Closed Ticket:** {channel.name}",
-        file=discord.File(
-            fp=io.BytesIO(log_content.encode('utf-8')),
-            filename=f"{channel.name}-log.txt"
-        )
+        file=discord.File(fp=io.BytesIO(log_content.encode('utf-8')), filename=f"{channel.name}-log.txt")
     )
 
     await asyncio.sleep(30)
     await channel.delete()
 
 
-@tree.command(name="close", description="現在のチケットを閉じる")
+@tree.command(name="close", description="チケットを閉じる / Close ticket")
 async def close_slash(interaction: discord.Interaction):
     await close_ticket(interaction)
 
@@ -117,7 +138,7 @@ async def on_message(message: discord.Message):
 @client.event
 async def on_ready():
     await tree.sync()
-    print(f"Bot is ready! {client.user} | 完全版稼働中")
+    print(f"Bot is ready! {client.user} | 詳細情報要求対応済み")
 
 
 client.run(os.getenv("TOKEN"))

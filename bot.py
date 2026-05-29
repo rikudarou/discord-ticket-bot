@@ -71,9 +71,11 @@ async def close(interaction: discord.Interaction):
     await asyncio.sleep(30)
     await interaction.channel.delete()
 
+import os   # ← この行を一番上に追加（他のimportと一緒に）
+
 @client.event
 async def on_ready():
     await tree.sync()
     print(f"Bot is ready! {client.user}")
 
-client.run("YOUR_BOT_TOKEN")
+client.run(os.getenv("TOKEN"))

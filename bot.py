@@ -4,6 +4,7 @@ from discord.ui import Select, View
 import asyncio
 import os
 from datetime import datetime
+import io  # ← これを追加
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -43,7 +44,7 @@ class TicketSelect(Select):
         }
 
         channel = await category.create_text_channel(
-            f"{ticket_type.lower().replace(' ', '-')}-{interaction.user.name}",
+            f"ticket-{ticket_type.lower().replace(' ', '-')}-{interaction.user.name}",
             overwrites=overwrites
         )
 
@@ -52,7 +53,7 @@ class TicketSelect(Select):
             description=f"{interaction.user.mention} さんがチケットを作成しました。",
             color=0x5865F2
         )
-        embed.add_field(name="閉じる方法", value="`!close` または `/close` と入力してください", inline=False)
+        embed.add_field(name="閉じる方法", value="`!close` または `/close` と入力", inline=False)
 
         await channel.send(embed=embed, content=interaction.user.mention)
         await interaction.response.send_message(f"✅ チケットを作成しました → {channel.mention}", ephemeral=True)
@@ -73,7 +74,7 @@ async def ticketpanel(interaction: discord.Interaction):
 
 async def close_ticket(ctx):
     channel = ctx.channel
-    if not any(word in channel.name.lower() for word in ["hwid", "products", "support", "reset"]):
+    if "ticket" not in channel.name.lower():
         return await channel.send("このチャンネルはチケットではありません。")
 
     await channel.send("✅ 30秒後にチケットを閉じ、ログを保存します...")
@@ -88,10 +89,13 @@ async def close_ticket(ctx):
     if not log_channel:
         log_channel = await channel.guild.create_text_channel("ticket-logs")
 
-    await log_channel.send(f"**Closed Ticket:** {channel.name}", file=discord.File(
-        fp=discord.utils._io.BytesIO(log_content.encode('utf-8')),
-        filename=f"{channel.name}-log.txt"
-    ))
+    await log_channel.send(
+        f"**Closed Ticket:** {channel.name}",
+        file=discord.File(
+            fp=io.BytesIO(log_content.encode('utf-8')),
+            filename=f"{channel.name}-log.txt"
+        )
+    )
 
     await asyncio.sleep(30)
     await channel.delete()
@@ -113,7 +117,7 @@ async def on_message(message: discord.Message):
 @client.event
 async def on_ready():
     await tree.sync()
-    print(f"Bot is ready! {client.user} | !close対応済み")
+    print(f"Bot is ready! {client.user} | 完全版稼働中")
 
 
 client.run(os.getenv("TOKEN"))

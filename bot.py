@@ -75,7 +75,9 @@ import os   # ← この行を一番上に追加（他のimportと一緒に）
 
 @client.event
 async def on_ready():
-    await tree.sync()
-    print(f"Bot is ready! {client.user}")
+    await tree.sync()                    # グローバル同期
+    # 以下を追加（あなたのサーバーIDを入れてください）
+    await tree.sync(guild=discord.Object(id=YOUR_SERVER_ID))
+    print(f"Bot is ready! {client.user} | コマンド同期完了")
 
 client.run(os.getenv("TOKEN"))
